@@ -4,3 +4,4 @@ scipy
 numpy
 pydantic
 pytest
+scikit-learn

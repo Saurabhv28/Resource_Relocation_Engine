@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from models import Resource, Request, Location, TruckSize, TRUCK_CAPACITIES
-from algorithms import greedy_allocation, hungarian_allocation
+from algorithms import greedy_allocation, hungarian_allocation, ml_allocation
 import random
 
 app = FastAPI(title="Resource Allocation Engine")
@@ -63,6 +63,7 @@ class AllocateRequest(BaseModel):
 class AllocateResponse(BaseModel):
     greedy: dict
     hungarian: dict
+    ml: dict
 
 
 @app.get("/api/sample-data")
@@ -74,12 +75,14 @@ def get_sample_data(n_resources: int = 8, n_requests: int = 10, seed: int = 42):
 
 @app.post("/api/allocate")
 def allocate(data: AllocateRequest):
-    """Run both algorithms and return comparison results."""
+    """Run all three algorithms and return comparison results."""
     greedy_result = greedy_allocation(data.resources, data.requests)
     hungarian_result = hungarian_allocation(data.resources, data.requests)
+    ml_result = ml_allocation(data.resources, data.requests)
     return {
         "greedy": greedy_result.model_dump(),
         "hungarian": hungarian_result.model_dump(),
+        "ml": ml_result.model_dump(),
     }
 
 

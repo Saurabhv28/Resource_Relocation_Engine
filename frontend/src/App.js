@@ -61,6 +61,9 @@ function App() {
           <button className={activeAlgo === 'hungarian' ? 'active' : ''} onClick={() => setActiveAlgo('hungarian')}>
             Hungarian (Optimal Batch)
           </button>
+          <button className={activeAlgo === 'ml' ? 'active' : ''} onClick={() => setActiveAlgo('ml')}>
+            ML-Based (Learned)
+          </button>
         </div>
       )}
 
@@ -69,7 +72,7 @@ function App() {
           <MapView data={data} result={currentResult} />
         </div>
         <div className="side-panel">
-          {results && <MetricsPanel greedy={results.greedy} hungarian={results.hungarian} />}
+          {results && <MetricsPanel greedy={results.greedy} hungarian={results.hungarian} ml={results.ml} />}
           {currentResult && (
             <div className="assignments-list">
               <h3>Assignments ({currentResult.assignments.length})</h3>

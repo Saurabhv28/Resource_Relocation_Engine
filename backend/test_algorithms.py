@@ -5,7 +5,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from models import Resource, Request, Location, TruckSize
-from algorithms import greedy_allocation, hungarian_allocation, haversine_km, can_fulfill
+from algorithms import greedy_allocation, hungarian_allocation, ml_allocation, haversine_km, can_fulfill
 
 
 def make_resource(id, lat, lng, size=TruckSize.MEDIUM, available=True):
@@ -138,6 +138,102 @@ class TestAlgorithmComparison:
         assert result.computation_time_ms >= 0
         assert result.total_distance_km > 0
         assert result.avg_distance_km > 0
+
+
+class TestMLAllocation:
+    def test_basic_assignment(self):
+        resources = [make_resource("t1", 12.97, 77.59)]
+        requests = [make_request("o1", 12.98, 77.60)]
+        result = ml_allocation(resources, requests)
+        assert len(result.assignments) == 1
+        assert result.assignments[0].resource_id == "t1"
+        assert result.assignments[0].request_id == "o1"
+        assert result.unassigned_requests == []
+        assert result.algorithm == "ML-Based (Learned Patterns)"
+
+    def test_no_resources(self):
+        result = ml_allocation([], [make_request("o1", 12.98, 77.60)])
+        assert len(result.assignments) == 0
+        assert result.unassigned_requests == ["o1"]
+
+    def test_no_requests(self):
+        result = ml_allocation([make_resource("t1", 12.97, 77.59)], [])
+        assert len(result.assignments) == 0
+
+    def test_respects_capacity_constraint(self):
+        resources = [make_resource("t1", 12.97, 77.59, TruckSize.SMALL)]
+        requests = [make_request("o1", 12.98, 77.60, weight=600)]  # Exceeds 500kg
+        result = ml_allocation(resources, requests)
+        assert len(result.assignments) == 0
+        assert "o1" in result.unassigned_requests
+
+    def test_respects_availability_constraint(self):
+        resources = [make_resource("t1", 12.97, 77.59, available=False)]
+        requests = [make_request("o1", 12.98, 77.60)]
+        result = ml_allocation(resources, requests)
+        assert len(result.assignments) == 0
+
+    def test_multiple_assignments_no_duplicates(self):
+        resources = [make_resource(f"t{i}", 12.97 + i*0.01, 77.59) for i in range(5)]
+        requests = [make_request(f"o{i}", 12.98 + i*0.01, 77.60) for i in range(5)]
+        result = ml_allocation(resources, requests)
+        # All should be assigned
+        assert result.assignment_rate == 100.0
+        # No duplicate resource or request assignments
+        res_ids = [a.resource_id for a in result.assignments]
+        req_ids = [a.request_id for a in result.assignments]
+        assert len(set(res_ids)) == len(res_ids)
+        assert len(set(req_ids)) == len(req_ids)
+
+    def test_provides_explanation(self):
+        resources = [make_resource("t1", 12.97, 77.59)]
+        requests = [make_request("o1", 12.98, 77.60)]
+        result = ml_allocation(resources, requests)
+        explanation = result.assignments[0].explanation
+        assert "ML model" in explanation
+        assert "confidence score" in explanation
+        assert "Distance" in explanation
+
+    def test_competitive_with_other_algorithms(self):
+        """ML should produce reasonable results compared to greedy and Hungarian."""
+        resources = [make_resource(f"t{i}", 12.97 + i*0.01, 77.59) for i in range(6)]
+        requests = [make_request(f"o{i}", 12.98 + i*0.005, 77.60, priority=(i % 3) + 1) for i in range(6)]
+
+        greedy_result = greedy_allocation(resources, requests)
+        hungarian_result = hungarian_allocation(resources, requests)
+        ml_result = ml_allocation(resources, requests)
+
+        # ML should achieve same assignment rate as others (all feasible)
+        assert ml_result.assignment_rate == 100.0
+        # ML total distance should be within reasonable range (not wildly worse)
+        assert ml_result.total_distance_km < greedy_result.total_distance_km * 2
+
+
+class TestThreeAlgorithmComparison:
+    def test_all_three_produce_valid_results(self):
+        resources = [make_resource(f"t{i}", 12.97 + i*0.01, 77.59) for i in range(5)]
+        requests = [make_request(f"o{i}", 12.98 + i*0.01, 77.60) for i in range(5)]
+
+        greedy_result = greedy_allocation(resources, requests)
+        hungarian_result = hungarian_allocation(resources, requests)
+        ml_result = ml_allocation(resources, requests)
+
+        for result in [greedy_result, hungarian_result, ml_result]:
+            assert result.assignment_rate == 100.0
+            assert result.computation_time_ms >= 0
+            assert result.total_distance_km > 0
+
+    def test_all_report_metrics(self):
+        resources = [make_resource(f"t{i}", 12.97 + i*0.02, 77.59) for i in range(3)]
+        requests = [make_request(f"o{i}", 12.98 + i*0.02, 77.60) for i in range(3)]
+
+        for algo_fn in [greedy_allocation, hungarian_allocation, ml_allocation]:
+            result = algo_fn(resources, requests)
+            assert hasattr(result, "total_distance_km")
+            assert hasattr(result, "avg_distance_km")
+            assert hasattr(result, "assignment_rate")
+            assert hasattr(result, "computation_time_ms")
+            assert result.algorithm != ""
 
 
 if __name__ == "__main__":

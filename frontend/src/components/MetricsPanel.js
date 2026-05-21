@@ -1,6 +1,6 @@
 import React from 'react';
 
-function MetricsPanel({ greedy, hungarian }) {
+function MetricsPanel({ greedy, hungarian, ml }) {
   return (
     <div className="metrics-panel">
       <h3>Algorithm Comparison</h3>
@@ -19,10 +19,22 @@ function MetricsPanel({ greedy, hungarian }) {
           <div className="metric-card green"><div className="value">{hungarian.assignment_rate}%</div><div className="label">Fulfillment</div></div>
           <div className="metric-card"><div className="value">{hungarian.computation_time_ms} ms</div><div className="label">Compute Time</div></div>
         </div>
+        <div className="algo-col">
+          <h4>ML-Based (Learned)</h4>
+          <div className="metric-card"><div className="value">{ml.total_distance_km} km</div><div className="label">Total Distance</div></div>
+          <div className="metric-card"><div className="value">{ml.avg_distance_km} km</div><div className="label">Avg Distance</div></div>
+          <div className="metric-card green"><div className="value">{ml.assignment_rate}%</div><div className="label">Fulfillment</div></div>
+          <div className="metric-card"><div className="value">{ml.computation_time_ms} ms</div><div className="label">Compute Time</div></div>
+        </div>
       </div>
       {hungarian.total_distance_km < greedy.total_distance_km && (
         <p style={{ marginTop: 12, fontSize: '0.8rem', color: '#276749', background: '#f0fff4', padding: 8, borderRadius: 4 }}>
           ✓ Hungarian saves <strong>{(greedy.total_distance_km - hungarian.total_distance_km).toFixed(1)} km</strong> ({((1 - hungarian.total_distance_km / greedy.total_distance_km) * 100).toFixed(1)}% reduction) over Greedy.
+        </p>
+      )}
+      {ml.total_distance_km < greedy.total_distance_km && (
+        <p style={{ marginTop: 6, fontSize: '0.8rem', color: '#2b6cb0', background: '#ebf8ff', padding: 8, borderRadius: 4 }}>
+          ✓ ML-Based saves <strong>{(greedy.total_distance_km - ml.total_distance_km).toFixed(1)} km</strong> ({((1 - ml.total_distance_km / greedy.total_distance_km) * 100).toFixed(1)}% reduction) over Greedy.
         </p>
       )}
     </div>
